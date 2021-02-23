@@ -11,6 +11,7 @@
 struct bank {
 	int num_accounts;        // number of accounts
 	int *accounts;           // balance array
+	pthread_mutex_t * mutex_arr;	 //mutex array
 };
 
 struct args {
@@ -39,6 +40,9 @@ void *deposit(void *ptr)
 		printf("Thread %d depositing %d on account %d\n",
 			args->thread_num, amount, account);
 
+		//lock
+		pthread_mutex_lock(&args->bank->mutex_arr[account]);
+
 		balance = args->bank->accounts[account];
 		if(args->delay) usleep(args->delay); // Force a context switch
 
@@ -47,6 +51,10 @@ void *deposit(void *ptr)
 
 		args->bank->accounts[account] = balance;
 		if(args->delay) usleep(args->delay);
+
+		//unlock
+		pthread_mutex_unlock(&args->bank->mutex_arr[account]);
+
 
 		args->net_total += amount;
 	}
@@ -119,15 +127,25 @@ void wait(struct options opt, struct bank *bank, struct thread_info *threads) {
 
 	free(threads);
 	free(bank->accounts);
+	free(bank->mutex_arr);
 }
 
 // allocate memory, and set all accounts to 0
 void init_accounts(struct bank *bank, int num_accounts) {
 	bank->num_accounts = num_accounts;
 	bank->accounts     = malloc(bank->num_accounts * sizeof(int));
+	bank->mutex_arr = malloc(bank->num_accounts * sizeof(pthread_mutex_t));
 
-	for(int i=0; i < bank->num_accounts; i++)
+	for(int i=0; i < bank->num_accounts; i++){
 		bank->accounts[i] = 0;
+	
+		//inicializar los mutex
+		if (pthread_mutex_init(&bank->mutex_arr[i], NULL) != 0){
+			printf("\n mutex init failed\n");
+			exit(1);
+		}
+	}
+		
 }
 
 int main (int argc, char **argv)
