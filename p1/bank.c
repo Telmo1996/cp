@@ -1,3 +1,5 @@
+/*Miembros del equipo: Telmo Fernández Corujo
+						Anna Taboada Pardiñas*/
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -42,7 +44,6 @@ void *deposit(void *ptr)
 
 		//lock
 		pthread_mutex_lock(&args->bank->mutex_arr[account]);
-
 		balance = args->bank->accounts[account];
 		if(args->delay) usleep(args->delay); // Force a context switch
 
@@ -55,7 +56,7 @@ void *deposit(void *ptr)
 		//unlock
 		pthread_mutex_unlock(&args->bank->mutex_arr[account]);
 
-
+		//Finaliza la sesión crítica
 		args->net_total += amount;
 	}
 	return NULL;
@@ -122,9 +123,10 @@ void wait(struct options opt, struct bank *bank, struct thread_info *threads) {
 
 	print_balances(bank, threads, opt.num_threads);
 
-	for (int i = 0; i < opt.num_threads; i++)
+	for (int i = 0; i < opt.num_threads; i++){
 		free(threads[i].args);
-
+		pthread_mutex_destroy(&bank->mutex_arr[i]);
+	}
 	free(threads);
 	free(bank->accounts);
 	free(bank->mutex_arr);
