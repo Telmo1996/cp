@@ -209,9 +209,9 @@ int main (int argc, char **argv)
 	init_accounts(&bank, opt.num_accounts);
 
 	thrs = start_threads(opt, &bank, deposit);
-    wait(opt, &bank, thrs);
-
 	thrs_trans = start_threads(opt, &bank, transferencia);
+
+    wait(opt, &bank, thrs);
     wait(opt, &bank, thrs_trans);
 
 	return 0;
