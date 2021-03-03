@@ -56,11 +56,11 @@ void *deposit(void *ptr)
 		args->bank->accounts[account] = balance;
 		if(args->delay) usleep(args->delay);
 
-		//unlock
-		pthread_mutex_unlock(&args->bank->mutex_arr[account]);
-
 		//Finaliza la sesión crítica
 		args->net_total += amount;
+
+		//unlock
+		pthread_mutex_unlock(&args->bank->mutex_arr[account]);
 	}
 	return NULL;
 }
@@ -69,6 +69,7 @@ void *transferencia (void *ptr){
 	struct args *args = ptr;
 	int amount=0, acc1, acc2;
 	int acc1balance, acc2balance;
+	int bloqueo;
 
 	while(args->iterations--){
 		acc1 = rand() % args->bank->num_accounts;
@@ -77,6 +78,7 @@ void *transferencia (void *ptr){
 			acc2 = rand() % args->bank->num_accounts;
 		
 		//Lock de los threads en orden para evitar interbloqueo
+		/*
 		if(&args->bank->mutex_arr[acc1]<&args->bank->mutex_arr[acc2]){
 			pthread_mutex_lock(&args->bank->mutex_arr[acc1]);
 			pthread_mutex_lock(&args->bank->mutex_arr[acc2]);
@@ -84,6 +86,15 @@ void *transferencia (void *ptr){
 			pthread_mutex_lock(&args->bank->mutex_arr[acc2]);
 			pthread_mutex_lock(&args->bank->mutex_arr[acc1]);
 		}
+		*/
+		do{
+			bloqueo = 0;
+			pthread_mutex_lock(&args->bank->mutex_arr[acc1]);
+			if(pthread_mutex_trylock(&args->bank->mutex_arr[acc2])){
+				pthread_mutex_unlock(&args->bank->mutex_arr[acc1]);
+				bloqueo = 1;
+			}
+		}while(bloqueo);
 
 		if(args->bank->accounts[acc1] > 0){
 			amount = rand() % args->bank->accounts[acc1];
@@ -109,6 +120,8 @@ void *transferencia (void *ptr){
 
 		pthread_mutex_unlock(&args->bank->mutex_arr[acc1]);
 		pthread_mutex_unlock(&args->bank->mutex_arr[acc2]);
+
+		pthread_cond_broadcast(&args->bank->cond_retirada[acc2]);
 	
 	}
 
@@ -295,5 +308,6 @@ int main (int argc, char **argv)
 
 	free(bank.accounts);
 	free(bank.mutex_arr);
+
 	return 0;
 }
