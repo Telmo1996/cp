@@ -85,8 +85,11 @@ void *transferencia (void *ptr){
 			pthread_mutex_lock(&args->bank->mutex_arr[acc1]);
 		}
 
-		if(args->bank->accounts[acc1] != 0)
+		if(args->bank->accounts[acc1] > 0){
 			amount = rand() % args->bank->accounts[acc1];
+		}else{
+			amount = 0;
+		}
 		
 		printf("Thread %d transfering %d from account %d to account %d\n",
 			args->thread_num, amount,acc1, acc2);
@@ -205,7 +208,7 @@ void print_balances(struct bank *bank, struct thread_info *thrs, int num_threads
 	printf("Total: %d\n", bank_total);
 
     printf("\nTotal retirado\n");
-	for(int i=0; i < bank->num_accounts; i++) {
+	for(int i=0; i < num_threads; i++) {
 		printf("%d: %d\n", i, thrs[i].args->total_retirado);
 		total_reti += thrs[i].args->total_retirado;
 	}
@@ -213,33 +216,19 @@ void print_balances(struct bank *bank, struct thread_info *thrs, int num_threads
 
 }
 
-/*// wait for all threads to finish, print totals, and free memory
-void wait(struct options opt, struct bank *bank, struct thread_info *threads) {
-	// Wait for the threads to finish
-	for (int i = 0; i < opt.num_threads; i++)
-		pthread_join(threads[i].id, NULL);
-
-	print_balances(bank, threads, opt.num_threads);
-
-	for (int i = 0; i < opt.num_threads; i++){
-		free(threads[i].args);
-		pthread_mutex_destroy(&bank->mutex_arr[i]);
-	}
-	free(threads);
-}*/
-
 void wait_no_balance(struct options opt, struct bank *bank, struct thread_info *threads) {
 	// Wait for the threads to finish
 	for (int i = 0; i < opt.num_threads; i++)
 		pthread_join(threads[i].id, NULL);
 
+}
+
+void frees(struct options opt, struct bank *bank, struct thread_info *threads){
 	for (int i = 0; i < opt.num_threads; i++){
 		free(threads[i].args);
 		pthread_mutex_destroy(&bank->mutex_arr[i]);
 	}
 	free(threads);
-	/*free(bank->accounts);
-	free(bank->mutex_arr);*/
 }
 
 // allocate memory, and set all accounts to 0
@@ -300,5 +289,11 @@ int main (int argc, char **argv)
 	print_deposits(&bank, thrs, opt.num_threads);
 	print_balances(&bank, thrs_reti, opt.num_threads);
 
+    frees(opt, &bank, thrs);
+    frees(opt, &bank, thrs_trans);
+	frees(opt, &bank, thrs_reti);
+
+	free(bank.accounts);
+	free(bank.mutex_arr);
 	return 0;
 }
