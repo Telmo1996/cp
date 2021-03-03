@@ -123,7 +123,7 @@ void *transferencia (void *ptr){
 		pthread_mutex_unlock(&args->bank->mutex_arr[acc2]);
 
 		pthread_cond_broadcast(&args->bank->cond_retirada[acc2]);
-	
+
 	}
 
 	return NULL;
@@ -132,6 +132,14 @@ void *transferencia (void *ptr){
 void *retirada(void *ptr){
 	struct args *args = ptr;
 	int amount, acc, balance;
+	struct timespec to;
+	pthread_condattr_t attr;
+
+	pthread_condattr_init( &attr);
+	pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+
+	clock_gettime(CLOCK_MONOTONIC, &to);
+	to.tv_sec += 1;
 
 	amount = rand() % MAX_AMOUNT;
 	acc = rand() % args->bank->num_accounts;
@@ -139,8 +147,8 @@ void *retirada(void *ptr){
 	pthread_mutex_lock(&args->bank->mutex_arr[acc]);
 
 	while((balance = args->bank->accounts[acc]) < amount){
-		pthread_cond_wait(&args->bank->cond_retirada[acc],
-			&args->bank->mutex_arr[acc]);
+		pthread_cond_timedwait(&args->bank->cond_retirada[acc],
+			&args->bank->mutex_arr[acc], &to);
 		if(args->bank->stop_retiradas){
 			pthread_mutex_unlock(&args->bank->mutex_arr[acc]);
 			return NULL;
@@ -159,7 +167,7 @@ void *retirada(void *ptr){
 	//Finaliza la sesión crítica
 	args->total_retirado += amount;
 
-	printf("Thread %d ha retirado %d de la cuenta %d\n",
+	printf("Thread %d withdrew %d from account %d\n",
 		args->thread_num, amount, acc);
 	
 	return NULL;
@@ -230,10 +238,12 @@ void print_balances(struct bank *bank, struct thread_info *thrs, int num_threads
 
 }
 
-void wait_no_balance(struct options opt, struct bank *bank, struct thread_info *threads) {
+void wait_no_balance(struct options opt, struct bank *bank, 
+	struct thread_info *threads) {
 	// Wait for the threads to finish
-	for (int i = 0; i < opt.num_threads; i++)
+	for (int i = 0; i < opt.num_threads; i++){
 		pthread_join(threads[i].id, NULL);
+	}
 
 }
 
