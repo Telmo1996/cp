@@ -96,6 +96,7 @@ void *transferencia (void *ptr){
 			}
 		}while(bloqueo);
 
+
 		if(args->bank->accounts[acc1] > 0){
 			amount = rand() % args->bank->accounts[acc1];
 		}else{
